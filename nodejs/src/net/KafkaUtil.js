@@ -1,53 +1,82 @@
+//
+const rdKafka = require('node-rdkafka');
+
+//
 const config = require("./../../config/config.js");
 const define = require("./../../config/define.js");
-const Kafka = require('node-rdkafka');
-const contract = require('./../contract/Contract.js');
-const winlog = require('./../utils/Winlog.js');
+const contractProc = require('./../contract/contractProc.js');
+const myCluster = require("./../cluster.js");
+const util = require('./../utils/commonUtil.js');
+const logger = require('./../utils/winlog.js');
 
-let topicName;
+////////////////////////////////////////////////////////////
+//
+let cTopicName; // Consumer
 
+//
 module.exports.getTopicName = () => {
-    return topicName;
+    return cTopicName;
 } 
 
-module.exports.SetTopicName = () => {
-    let NNAconf = config.nn_node_json;
-    let P2Proot = NNAconf.NODE.P2P.CLUSTER.ROOT;
-    let TopicName = P2Proot.slice(
+module.exports.setTopicName = () => {
+    let nnaConf = config.NN_NODE_JSON;
+    let P2Proot = nnaConf.NODE.P2P.CLUSTER.ROOT;
+    let clusterId = P2Proot.slice(
         define.P2P_DEFINE.P2P_TOPIC_NAME_SPLIT_INDEX.START, 
         define.P2P_DEFINE.P2P_TOPIC_NAME_SPLIT_INDEX.END);
 
-    topicName = TopicName;
+        cTopicName = clusterId;
+    logger.debug("cTopicName : " + cTopicName);
 };
 
-module.exports.setKafkaConsumer = async (cluster_id) => {
-    let consumer = new Kafka.KafkaConsumer(config.KafkaConfig);
+////////////////////////////////////////////////////////////
+//
+module.exports.setRdKafkaConsumer = async (cluster_id) => {
+    logger.debug("config.KAFKA_CONSUMER_CONFIG : " + JSON.stringify(config.KAFKA_CONSUMER_CONFIG));
+    let consumer = new rdKafka.KafkaConsumer(config.KAFKA_CONSUMER_CONFIG);
 
     consumer.on('ready', (arg) => {
-        consumer.subscribe([topicName]);
+        consumer.subscribe([cTopicName]);
         consumer.consume();
-        winlog.info("Cluster ID : " + cluster_id + "'s Kafka Consumer ready to consume " + JSON.stringify(arg));
-        winlog.info(`Consumption topic name [${topicName}] `);
+        logger.debug("Cluster ID : " + cluster_id + "'s Kafka Consumer ready to consume " + JSON.stringify(arg));
+        logger.debug(`Consumption topic name [${cTopicName}] `);
     });
 
     consumer.on('data', async (data) => {
-        winlog.info("Recieved Contract From Wallet");
-        winlog.info(data.value);
+        logger.debug("Recieved Contract From Wallet");
+        logger.debug(data.value);
+
+        let contractJson = Buffer.from(data.value).toString();
 
 //        let len = data.value.toString().length; // - 1
-        let contract_res = await contract.createTx(JSON.parse(JSON.stringify(Buffer.from(data.value).toString())));
-        // let contract_res = await contract.createTx(data.value.toString());
-        winlog.info(JSON.stringify(contract_res));
+        // let contract_res = await contractProc.inspectContract(JSON.parse(JSON.stringify(contractJson))); // OK
+        // let contract_res = await contractProc.inspectContract(contractJson); // OK
+        // logger.debug(JSON.stringify(contract_res));
+        // await myCluster.sendTxsArrToMaster();
+        
+        if(util.isJsonString(contractJson))
+        {
+            // // Option 1
+            // myCluster.sendRawTxsToMaster(contractJson);
+
+            // Option 2
+            let data = {jsonData : contractJson};
+            contractProc.pushContractArray(data);
+        }
+        else
+        {
+            logger.error("inspectContract - CONTRACT_ERROR_JSON.JSON_FORMAT");
+            // return config.CONTRACT_ERROR_JSON.JSON_FORMAT;
+        }
     });
 
     consumer.on('disconnected', (arg) => {
-        winlog.info("Kafka Consumer Disconnected" + JSON.stringify(arg));
+        logger.error("Kafka Consumer Disconnected : " + JSON.stringify(arg));
     });
 
     consumer.on('event.error', (err) => {
-        winlog.info("Kafka Consumer Error : ", err);
+        logger.error("Kafka Consumer Error : ", err);
     });
 
     consumer.connect();
-
 }

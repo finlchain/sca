@@ -1,75 +1,127 @@
-const define = require("./../../config/define.js");
-const winlog = require("./Winlog.js");
-const contract = require("./../contract/Contract.js");
+//
+const contractProc = require("./../contract/contractProc.js");
+const myCluster = require("./../cluster.js");
 
-let logoutTimerObjMap = new Map();
+// //////////////////////////////////////////////////
+// //
+// let timerObjChkBlk = 0;
+// let timerObjChkBlkMsInterval = 3000;
 
-const SendTxsSCAToNNA = async (TXLock) => {
-    await TXLock.acquire();
-    await contract.sendTxArrToNNA();
-    await TXLock.release();
-}
+// //
+// module.exports.setIntervalChkBlk = () => {
+//     if (timerObjChkBlk)
+//     {
+//         return false;
+//     }
 
-const SendTxsKafkaWorkerToMaster = async (TXLock) => {
-    await TXLock.acquire();
-    let tempArray = [...contract.getContractArray()];
-    await process.send(tempArray);
-    contract.reinitContractArray();
-    await TXLock.release();
-}
+//     // timerObjChkBlk = setInterval(contractProc.updateAccountBalanceSubNet, timerObjChkBlkMsInterval);
 
-const SendTxsMasterToNNAWorker = async (TXLock, cluster) => {
-    await TXLock.acquire();
-    let tempArray = [...contract.getContractArray()];
-    await cluster.workers[define.CLUSTER_DEFINE.NNA_CLUSTER_WORKER_ID_STR].send(tempArray);
-    contract.reinitContractArray();
-    await TXLock.release();
-}
+//     return true;
+// }
 
-const LogoutTimerFunc = async (pubkey) => {
-    let contractJson = await contract.createTimeoutContract(pubkey);
-    let contract_res = await contract.createTx(JSON.stringify(contractJson));
-    winlog.info(JSON.stringify(contract_res));
-}
+// module.exports.clrIntervalChkBlk = () => {
+//     if (!timerObjChkBlk)
+//     {
+//         return false;
+//     }
 
-module.exports.setContractScheduler = async (cluster, TXLock) => {
-    if(cluster.isMaster) 
+//     clearInterval(timerObjChkBlk);
+
+//     timerObjChkBlk = 0;
+
+//     return true;
+// }
+// //////////////////////////////////////////////////
+
+//////////////////////////////////////////////////
+//
+let timerObjRawTxsArrToNna = 0;
+let timerObjRawTxsArrToNnaMsInterval = 50;
+
+//
+module.exports.setIntervalRawTxArrToNna = () => {
+    if (timerObjRawTxsArrToNna)
     {
-        setInterval(SendTxsMasterToNNAWorker, define.CLUSTER_DEFINE.SEND_TXS_TO_NNA_INTERVAL, TXLock, cluster);
+        return false;
     }
-    else 
+
+    timerObjRawTxsArrToNna = setInterval(myCluster.sendRawTxsArrToMaster, timerObjRawTxsArrToNnaMsInterval);
+
+    return true;
+}
+
+module.exports.clrIntervalRawTxArrToNna = () => {
+    if (!timerObjRawTxsArrToNna)
     {
-        if(cluster.worker.id === define.CLUSTER_DEFINE.NNA_CLUSTER_WORKER_ID)
-        {
-            setInterval(SendTxsSCAToNNA, define.CLUSTER_DEFINE.SEND_TXS_TO_NNA_INTERVAL, TXLock);
-        }
-        else
-        {
-            setInterval(SendTxsKafkaWorkerToMaster, define.CLUSTER_DEFINE.SEND_TXS_TO_NNA_INTERVAL, TXLock);
-        }
+        return false;
     }
+
+    clearInterval(timerObjRawTxsArrToNna);
+
+    timerObjRawTxsArrToNna = 0;
+
+    return true;
+}
+//////////////////////////////////////////////////
+
+//////////////////////////////////////////////////
+//
+let timerObjTxsArrToNna = 0;
+let timerObjTxsArrToNnaMsInterval = 50;
+
+//
+module.exports.setIntervalTxsArrToNna = () => {
+    if (timerObjTxsArrToNna)
+    {
+        return false;
+    }
+
+    timerObjTxsArrToNna = setInterval(myCluster.sendTxsArrToMaster, timerObjTxsArrToNnaMsInterval);
+
+    return true;
 }
 
-module.exports.setLogoutTimer = (pubkey) => {
-    let timerobj = setTimeout(LogoutTimerFunc, define.ACCOUNT_DEFINE.LOGIN_TIMEOUT_MILLI_SEC, pubkey);
-    // put timerobj into map (key : pubkey, value : timerobj);
-    logoutTimerObjMap.set(pubkey, timerobj);
+module.exports.clrIntervalTxsArrToNna = () => {
+    if (!timerObjTxsArrToNna)
+    {
+        return false;
+    }
+
+    clearInterval(timerObjTxsArrToNna);
+
+    timerObjTxsArrToNna = 0;
+
+    return true;
+}
+//////////////////////////////////////////////////
+
+//////////////////////////////////////////////////
+//
+let timerObjTxArrToDB = 0;
+let timerObjTxArrToDBMsInterval = 50;
+
+//
+module.exports.setIntervalTxArrToDB = () => {
+    if (timerObjTxArrToDB)
+    {
+        return false;
+    }
+
+    timerObjTxArrToDB = setInterval(myCluster.sendNullTxsToMaster, timerObjTxArrToDBMsInterval);
+
+    return true;
 }
 
-module.exports.delLogoutTimer = (pubkey) => {
-    let timerObj = logoutTimerObjMap.get(pubkey);
-    logoutTimerObjMap.delete(pubkey);
+module.exports.clrIntervalTxArrToDB = () => {
+    if (!timerObjTxArrToDB)
+    {
+        return false;
+    }
 
-    // delete timerobj
-    clearTimeout(timerObj);
-}
+    clearInterval(timerObjTxArrToDB);
 
-module.exports.getLogoutTimerObj = (pubkey) => {
-    return logoutTimerObjMap.get(pubkey);
-}
+    timerObjTxArrToDB = 0;
 
-module.exports.sleep = (ms) => {
-    return new Promise(resolve => {
-        setTimeout(resolve, ms);
-    });
+    return true;
 }
+//////////////////////////////////////////////////

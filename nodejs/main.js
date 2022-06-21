@@ -1,7 +1,9 @@
-const cluster = require("./src/Cluster.js");
+//
+const cluster = require("./src/cluster.js");
 
+//
 const main = async () => {
-    await cluster.ClusterInit();
+    await cluster.clusterInit();
 }
 
 main();

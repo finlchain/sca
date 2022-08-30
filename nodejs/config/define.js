@@ -280,7 +280,13 @@ module.exports.CONTRACT_DEFINE = {
             SC : {
                 STT : config.CONTRACT_ACTIONS_JSON.CONTRACT.SC.STT, 
                 END : config.CONTRACT_ACTIONS_JSON.CONTRACT.SC.END,
-            }, 
+            },
+
+            // NFT
+            NFT : {
+                STT : config.CONTRACT_ACTIONS_JSON.CONTRACT.NFT.STT, 
+                END : config.CONTRACT_ACTIONS_JSON.CONTRACT.NFT.END,
+            },
         }, 
         
         // NOTICE

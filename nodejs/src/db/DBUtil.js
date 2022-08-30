@@ -100,7 +100,7 @@ module.exports.actQuery = async (queryV) => {
     logger.debug("actQuery queryV : " + queryV);
     let query_result =  await this.query(queryV);
 
-    logger.info("actQuery result : " + JSON.stringify(query_result));
+    logger.debug("actQuery result : " + JSON.stringify(query_result));
 }
 
 module.exports.truncate = (dbName) => {

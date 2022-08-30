@@ -9,8 +9,8 @@ const debug = require("./../utils/debug.js");
 //
 const procedureQuerys = {
     scQuerys: [
-        "DROP PROCEDURE IF EXISTS SET_DB_KEY_INDEX",
-        "CREATE PROCEDURE SET_DB_KEY_INDEX (IN _DBKeyString VARCHAR(20)) "
+        // "DROP PROCEDURE IF EXISTS SET_DB_KEY_INDEX",
+        "CREATE PROCEDURE IF NOT EXISTS SET_DB_KEY_INDEX (IN _DBKeyString VARCHAR(20)) "
         + "BEGIN " 
         + "DECLARE _bigintDBkey BIGINT UNSIGNED; "
         + "DECLARE _stmt VARCHAR(1024); "
@@ -226,7 +226,13 @@ const createTableFields = {
         + "`db_key` bigint(20) unsigned DEFAULT 0 NOT NULL COMMENT 'DB Key', "
         + "`sc_action` int(11) unsigned NOT NULL DEFAULT 0,"
         + "`action_target` int(11) unsigned NOT NULL DEFAULT 0,"
+        + "`from_account_num` bigint(20) unsigned DEFAULT 0 NOT NULL COMMENT 'Sending Account Number', "
+        + "`to_account_num` bigint(20) unsigned DEFAULT 0 NOT NULL COMMENT 'Receved Account Number', "
+        + "`sub_id` int(11) unsigned NOT NULL DEFAULT 0,"
         + "`sc` json DEFAULT NULL,"
+        + "KEY `actions1` (`action_target`, `sc_action`, `sub_id`) USING BTREE, "
+        + "KEY `actions2` (`sc_action`, `sub_id`) USING BTREE, "
+        + "KEY `subnet_id` (`subnet_id`) USING BTREE, "
         + "UNIQUE KEY `uk_idx` (`idx`, `subnet_id`), "
         + "PRIMARY KEY (`db_key`, `sc_action`, `action_target`, `blk_num`, `subnet_id`) USING BTREE",
     ]
@@ -432,7 +438,7 @@ module.exports.querys = {
         },
         account_sc : {
             //
-            insertAccountSc : `INSERT IGNORE INTO account.account_sc(subnet_id, create_tm, blk_num, db_key, sc_action, action_target, sc) VALUES `, 
+            insertAccountSc : `INSERT IGNORE INTO account.account_sc(subnet_id, create_tm, blk_num, db_key, sc_action, action_target, from_account_num, to_account_num, sub_id, sc) VALUES `, 
             // //
             // selectCntByScAction : "SELECT COUNT(*) AS total_count FROM account.account_sc WHERE sc_action = ?", 
             //

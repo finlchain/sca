@@ -139,6 +139,17 @@ module.exports.makeFin = (dir, seed) => {
 }
 
 //
+module.exports.getMemInfo = () => {
+    const mem = {
+        freemem: os.freemem(),
+        totalmem: os.totalmem()
+    };
+    mem.available = (mem.freemem * 100 / mem.totalmem).toFixed(2) + '%';
+
+    return mem;
+}
+
+//
 module.exports.checkIP = (ipAddr) => {
     if(define.REGEX.IP_ADDR_REGEX.test(ipAddr))
     {
@@ -256,7 +267,6 @@ module.exports.padding = (data, len, separator) => {
             if(data.length === len) break;
             else continue;
         }
-        
     }
     else if(separator === define.COMMON_DEFINE.PADDING_DELIMITER.BACK)
     {
@@ -645,4 +655,18 @@ module.exports.balNum = (balance, amount, decimal_point) => {
     }
 
     return true;
+}
+
+//
+module.exports.date2Timestamp = (strDate) => {
+    const dt = Date.parse(strDate);  
+
+    return dt;
+}
+
+//
+module.exports.timestamp2Date = (ts) => {
+    const td = new Date(ts);
+
+    return td;
 }

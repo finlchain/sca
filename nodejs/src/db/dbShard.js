@@ -239,7 +239,11 @@ const createShardTables = async () => {
 }
 
 module.exports.initShard = async () => {
-    await createShardUser();
+    if (config.DB_CREATE_USER === true)
+    {
+        await createShardUser();
+    }
+
 
     await dropShardServers();
     await createShardServers();

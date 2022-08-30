@@ -157,6 +157,9 @@ module.exports.CONTRACT_TEST_MODE = false;
 module.exports.ACCOUNT_TEST_MODE = false;
 
 //
+module.exports.DB_CREATE_USER = false; 
+
+//
 module.exports.setDbTestMode = (testMode) => {
     this.DB_TEST_MODE = testMode;
 

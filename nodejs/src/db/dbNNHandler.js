@@ -860,14 +860,25 @@ module.exports.insertAccountScActionV = async (scActionArray) => {
         let already_existed = false;
         if (!already_existed)
         {
+            //
+            let fromAccountNum = util.hexStrToBigInt(contractJson.from_account);
+            let toAccountNum = util.hexStrToBigInt(contractJson.to_account);
+
+            //
+            let scJson = JSON.parse(contractJson.contents.sc);
+
+            //
             insertAccountScQuery += `(${contractProc.getMySubNetId()}, `;
             insertAccountScQuery += `${BigInt(contractJson.create_tm)}, `; // create_tm
             insertAccountScQuery += `${BigInt(0)}, `; // blk_num
             insertAccountScQuery += `${BigInt(element.db_key)}, `;
             insertAccountScQuery += `${contractJson.contents.sc_action}, `;
             insertAccountScQuery += `${contractJson.contents.action_target}, `;
-            insertAccountScQuery += `"${contractJson.contents.sc}"),`;
-            // insertAccountScQuery += `${JSON.stringify(contractJson.contents.sc)}),`;
+            insertAccountScQuery += `${BigInt(fromAccountNum)}, `
+            insertAccountScQuery += `${BigInt(toAccountNum)}, `
+            insertAccountScQuery += `${scJson.sub_id}, `
+            // insertAccountScQuery += `"${contractJson.contents.sc}"),`;
+            insertAccountScQuery += `${JSON.stringify(contractJson.contents.sc)}),`;
             cnt ++;
         }
     });

@@ -496,7 +496,7 @@ module.exports.sendTxArrToDB = async () => {
                         scActionArray.push({ db_key : db_key, contractJson : contractJson });
                     }
                     else if ((contractJson.action >= define.CONTRACT_DEFINE.ACTIONS.CONTRACT.SC.STT) &&
-                        (contractJson.action <= define.CONTRACT_DEFINE.ACTIONS.CONTRACT.SC.END))
+                        (contractJson.action <= define.CONTRACT_DEFINE.ACTIONS.CONTRACT.NFT.END))
                     {
                         let newContractJson = JSON.parse(sc.updateTransferScContract(contractJson));
                         

@@ -22,7 +22,7 @@ const logger = require("./../utils/winlog.js");
 module.exports.handler = async (cmd) => {
     let retVal = true;
 
-    logger.info('SCA CLI Received Data : ' + cmd);
+    logger.debug('SCA CLI Received Data : ' + cmd);
 
     let cmdSplit = cmd.split(' ');
 

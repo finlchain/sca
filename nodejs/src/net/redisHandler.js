@@ -78,7 +78,7 @@ module.exports.nnaBlockNotiCB = async (message) => {
 // From ISA
 module.exports.isaCmdNotiCB = async (cmd, cmdNotiAcksPublisher) => {
     try {
-        logger.info("[REDIS - SUB] [" + define.REDIS_DEFINE.CHANNEL.CMD_NOTI + "]");// (" + cmd.toString() + ")");
+        logger.debug("[REDIS - SUB] [" + define.REDIS_DEFINE.CHANNEL.CMD_NOTI + "]");// (" + cmd.toString() + ")");
         const regexResult = define.REGEX.NEW_LINE_REGEX.test(cmd);
         let ack_msg;
 

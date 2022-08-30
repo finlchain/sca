@@ -621,12 +621,12 @@ const chkAddUserContract = async(contractJson) => {
     }
 
     // Check account id
-    let regexResult = define.REGEX.ID_REGEX.test(accountId);
-    if(!regexResult)
-    {
-        logger.error("chkAddUserContract - Invalid ID");
-        return define.ERR_CODE.ERROR;
-    }
+    // let regexResult = define.REGEX.ID_REGEX.test(accountId);
+    // if(!regexResult)
+    // {
+    //     logger.error("chkAddUserContract - Invalid ID");
+    //     return define.ERR_CODE.ERROR;
+    // }
     
     // Check user and token account
     let userAccount = await dbNNHandler.accountUserCheck(ownerPk, superPk, accountId);
@@ -727,7 +727,7 @@ const chkCreateScContract = async(contractJson) => {
 
     //
     if ((sc_action < define.CONTRACT_DEFINE.ACTIONS.CONTRACT.SC.STT) ||
-        (sc_action > define.CONTRACT_DEFINE.ACTIONS.CONTRACT.SC.END))
+        (sc_action > define.CONTRACT_DEFINE.ACTIONS.CONTRACT.NFT.END))
     {
         logger.error("chkCreateScContract - Invalid scAction Range");
         return define.ERR_CODE.ERROR;
@@ -736,7 +736,8 @@ const chkCreateScContract = async(contractJson) => {
     //
     let scActionAccount = await dbNNHandler.accountScActionCheck(sc_action);
     logger.debug("scActionAccount : " + scActionAccount);
-    if (scActionAccount)
+    logger.debug("scActionAccount.length : " + scActionAccount.length);
+    if (scActionAccount.length)
     {
         logger.error("chkCreateScContract - Invalid scAction 1");
         return define.ERR_CODE.ERROR;
@@ -781,8 +782,15 @@ const chkTransferScContract = async(contractJson) => {
     }
 
     //
+    logger.debug('contractJson: ' + JSON.stringify(contractJson));
+
+    //
     let sc_action = contractJson.action;
     let sc = contractJson.contents.sc;
+
+    //
+    let fromAccountBInt = util.hexStrToBigInt(contractJson.from_account);
+    logger.debug('contractJson - from_account_num to bigint: ' + fromAccountBInt);
 
     if(!util.isJsonString(sc))
     {
@@ -792,7 +800,7 @@ const chkTransferScContract = async(contractJson) => {
 
     //
     if ((sc_action < define.CONTRACT_DEFINE.ACTIONS.CONTRACT.SC.STT) ||
-        (sc_action > define.CONTRACT_DEFINE.ACTIONS.CONTRACT.SC.END))
+        (sc_action > define.CONTRACT_DEFINE.ACTIONS.CONTRACT.NFT.END))
     {
         logger.error("chkTransferScContract - Invalid scAction Range");
         return define.ERR_CODE.ERROR;
@@ -800,7 +808,7 @@ const chkTransferScContract = async(contractJson) => {
 
     //
     let scActionAccount = await dbNNHandler.accounScActionAndTargetCheck(sc_action);
-    // logger.debug("scActionAccount.length : " + scActionAccount.length);
+    logger.debug("scActionAccount : " + JSON.stringify(scActionAccount));
     if (!scActionAccount.length)
     {
         logger.error("chkCreateScContract - Invalid scAction 2");
@@ -808,23 +816,29 @@ const chkTransferScContract = async(contractJson) => {
     }
 
     // //
-    // let action_target = scActionAccount[0].action_target;
+    if (!fromAccountBInt) {
+        logger.debug("sc transfer -- MINTING");
+        let action_target = scActionAccount[0].action_target;
+    
+        let tokenAccount = await dbNNHandler.accountTokenCheck(action_target);
+        // logger.debug("tokenAccount.length : " + tokenAccount.length);
+        if (!tokenAccount.length)
+        {
+            logger.error("chkCreateScContract - Invalid Action");
+            return define.ERR_CODE.ERROR;
+        }
+    
+        logger.debug("tokenAccount[0].owner_pk : " + tokenAccount[0].owner_pk);
+        logger.debug("contractJson.signed_pubk : " + contractJson.signed_pubkey);
+        if (tokenAccount[0].owner_pk !== contractJson.signed_pubkey)
+        {
+            logger.error("chkCreateScContract - Invalid Signed Public Key");
+            return define.ERR_CODE.ERROR;
+        }
+    } else {
 
-    // let tokenAccount = await dbNNHandler.accountTokenCheck(action_target);
-    // // logger.debug("tokenAccount.length : " + tokenAccount.length);
-    // if (!tokenAccount.length)
-    // {
-    //     logger.error("chkCreateScContract - Invalid Action");
-    //     return define.ERR_CODE.ERROR;
-    // }
-
-    // // logger.debug("tokenAccount[0].owner_pk : " + tokenAccount[0].owner_pk);
-    // // logger.debug("contractJson.signed_pubk : " + contractJson.signed_pubkey);
-    // if (tokenAccount[0].owner_pk !== contractJson.signed_pubkey)
-    // {
-    //     logger.error("chkCreateScContract - Invalid Signed Public Key");
-    //     return define.ERR_CODE.ERROR;
-    // }
+        logger.debug("sc transfer -- USER to USER")
+    }
 
     return define.ERR_CODE.SUCCESS;
 }
@@ -960,7 +974,7 @@ module.exports.chkContract = async (contractJson) => {
         retVal = await chkCreateScContract(contractJson);
     }
     else if ((contractJson.action >= define.CONTRACT_DEFINE.ACTIONS.CONTRACT.SC.STT) &&
-             (contractJson.action <= define.CONTRACT_DEFINE.ACTIONS.CONTRACT.SC.END))
+             (contractJson.action <= define.CONTRACT_DEFINE.ACTIONS.CONTRACT.NFT.END))
     {
         retVal = await chkTransferScContract(contractJson);
     }

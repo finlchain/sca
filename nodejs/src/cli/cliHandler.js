@@ -271,6 +271,11 @@ module.exports.handler = async (cmd) => {
             logger.debug("ip[" + index + "] : " + element);
         });
     }
+    else if(cmd.slice(0, 9)  === "gen dbkey") 
+    {
+        let testDbKey = contractProc.genDbKeyIndex();
+        logger.debug("testDbKey : " + testDbKey);
+    }
     else
     {
         retVal = false;

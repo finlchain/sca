@@ -337,6 +337,35 @@ module.exports.isJsonString = (str) =>{
 }
 
 //
+module.exports.findDuplArrByField = (arr, targetField) => {
+    // const filtered = arr.filter((item, index) => arr.indexOf(item) !== index);
+    const filtered = arr.filter((item, index) => arr.findIndex(x => x[targetField] === item[targetField]) !== index);
+
+    return [...new Set(filtered)]
+}
+
+module.exports.delDuplArrByField = (arr, targetField) => {
+    // const filtered = arr.filter((item, index) => arr.indexOf(item) !== index);
+    const filtered = arr.filter((item, index) => arr.findIndex(x => x[targetField] === item[targetField]) === index);
+
+    return [...new Set(filtered)]
+}
+
+//
+module.exports.delDuplArr = (arr) => {
+    const myMap = new Map();
+
+    for(const character of arr){
+        logger.debug(JSON.stringify(character));
+        myMap.set(JSON.stringify(character), character);
+    }
+
+    let arrUnique = [...myMap.values()];
+
+    return arrUnique;
+}
+
+//
 module.exports.bytesToBuffer = (bytes) => {
     var buff = Buffer.alloc(bytes.byteLength);
     var view = new Uint8Array(bytes);
@@ -388,11 +417,17 @@ module.exports.hexStrToInt = (hexStr) => { // Integer
     return num;
 }
 
-// module.exports.intToHexStr = (num) => { // Not Big Number
-//     // logger.debug("100000000000000B : " + BigInt('1152921504606846987').toString(16));
-//     let hexStr = Number(num).toString(16);
-//     return hexStr;
-// }
+module.exports.bigIntStrToBigInt = (bigIntStrStr) => { // Big Number
+    // https://coolaj86.com/articles/convert-hex-to-decimal-with-js-bigints/
+    let num = BigInt(bigIntStrStr);
+    return num;
+}
+
+module.exports.intStrToHexStr = (numStr) => { // Not Big Number
+    // logger.debug("100000000000000B : " + BigInt('1152921504606846987').toString(16));
+    let hexStr =  parseInt(numStr).toString(16);
+    return hexStr;
+}
 
 module.exports.intArrToChar = (arr) => {
     var i, str = '';

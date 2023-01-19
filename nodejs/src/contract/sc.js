@@ -34,5 +34,6 @@ module.exports.updateTransferScContract = (contractJsonOrg) => {
 
     logger.debug("updateTransferScContract - newContractJson : " + JSON.stringify(contractJson));
 
-    return JSON.stringify(contractJson);
+    // return JSON.stringify(contractJson);
+    return contractJson;
 }

@@ -56,7 +56,8 @@ const createTableFields = {
         + "`create_tm` bigint(20) unsigned DEFAULT 0 NOT NULL COMMENT 'Contract Create Time', "
         // + "`prv_db_key` bigint(20) unsigned DEFAULT 0 NOT NULL,"
         // + "`blk_num` bigint(20) unsigned DEFAULT 0 NOT NULL COMMENT 'Block Number', "
-        + "`db_key` bigint(20) unsigned NOT NULL AUTO_INCREMENT,"
+        // + "`db_key` bigint(20) unsigned NOT NULL AUTO_INCREMENT,"
+        + "`db_key` bigint(20) unsigned NOT NULL,"
         + "`confirmed` tinyint(3) NOT NULL DEFAULT 0,"
         + "`from_account` bigint(20) unsigned DEFAULT 0 NOT NULL,"
         + "`to_account` bigint(20) unsigned DEFAULT 0 NOT NULL,"
@@ -298,7 +299,7 @@ module.exports.querys = {
         DBKeySet : `CALL SET_DB_KEY_INDEX(?)`,
         //
         sc_contents : {
-            insertScContents : `INSERT IGNORE INTO sc.sc_contents(subnet_id, create_tm, confirmed, from_account, to_account, action, c_action, dst_account, amount, signed_pubkey, err_code, contract) VALUES `,
+            insertScContents : `INSERT IGNORE INTO sc.sc_contents(subnet_id, create_tm, db_key, confirmed, from_account, to_account, action, c_action, dst_account, amount, signed_pubkey, err_code, contract) VALUES `,
             //
             selectByDbKey: `SELECT signed_pubkey, confirmed, from_account, to_account, action, amount, err_code FROM sc.sc_contents WHERE ? <= db_key and db_key <= ?`,
             selectByFromAccount : `SELECT * FROM sc.sc_contents as a WHERE from_account = ? ORDER BY create_tm DESC LIMIT 1`, 
@@ -348,30 +349,30 @@ module.exports.querys = {
             //
             insertAccountTokens : `INSERT IGNORE INTO account.account_tokens(subnet_id, revision, create_tm, blk_num, db_key, owner_pk, super_pk, account_num, action, name, symbol, total_supply, market_supply, decimal_point, lock_time_from, lock_time_to, lock_transfer, black_list, functions) VALUES `,
             //
-            // selectAccountTokenT : `SELECT * FROM account.account_tokens WHERE action = ? ORDER BY idx DESC LIMIT 1`,
+            // selectAccountTokenT : `SELECT * FROM account.account_tokens WHERE action = ? ORDER BY create_tm DESC LIMIT 1`,
             selectAccountTokenT : `SELECT A.subnet_id, A.idx, A.revision, A.create_tm, B.blk_num, A.db_key, A.owner_pk, A.super_pk, `
                                 + `A.account_num, A.action, A.name, A.symbol, A.total_supply, A.market_supply, A.decimal_point, `
                                 + `A.lock_time_from, A.lock_time_to, A.lock_transfer, A.black_list, A.functions `
                                 + `FROM account.account_tokens AS A INNER JOIN block.blk_txs AS B ON A.db_key = B.db_key `
-                                + `WHERE B.blk_num > 0 AND A.action = ? ORDER BY A.idx DESC LIMIT 1`,
-            // selectAccountTokenTNS : `SELECT * FROM account.account_tokens WHERE action = ? OR name = ? OR symbol = ? ORDER BY idx DESC LIMIT 1`,
+                                + `WHERE B.blk_num > 0 AND A.action = ? ORDER BY A.create_tm DESC LIMIT 1`,
+            // selectAccountTokenTNS : `SELECT * FROM account.account_tokens WHERE action = ? OR name = ? OR symbol = ? ORDER BY create_tm DESC LIMIT 1`,
             selectAccountTokenTNS : `SELECT A.subnet_id, A.idx, A.revision, A.create_tm, B.blk_num, A.db_key, A.owner_pk, A.super_pk, `
                                 + `A.account_num, A.action, A.name, A.symbol, A.total_supply, A.market_supply, A.decimal_point, `
                                 + `A.lock_time_from, A.lock_time_to, A.lock_transfer, A.black_list, A.functions `
                                 + `FROM account.account_tokens AS A INNER JOIN block.blk_txs AS B ON A.db_key = B.db_key `
-                                + `WHERE B.blk_num > 0 AND ( A.action = ? OR A.name = ? OR A.symbol = ? ) ORDER BY A.idx DESC LIMIT 1`,
-            // selectAccountTokenKey : `SELECT * FROM account.account_tokens WHERE owner_pk = ? OR super_pk = ? OR owner_pk = ? OR super_pk = ? ORDER BY idx DESC LIMIT 1`,
+                                + `WHERE B.blk_num > 0 AND ( A.action = ? OR A.name = ? OR A.symbol = ? ) ORDER BY A.create_tm DESC LIMIT 1`,
+            // selectAccountTokenKey : `SELECT * FROM account.account_tokens WHERE owner_pk = ? OR super_pk = ? OR owner_pk = ? OR super_pk = ? ORDER BY create_tm DESC LIMIT 1`,
             selectAccountTokenKey : `SELECT A.subnet_id, A.idx, A.revision, A.create_tm, B.blk_num, A.db_key, A.owner_pk, A.super_pk, `
                                 + `A.account_num, A.action, A.name, A.symbol, A.total_supply, A.market_supply, A.decimal_point, `
                                 + `A.lock_time_from, A.lock_time_to, A.lock_transfer, A.black_list, A.functions `
                                 + `FROM account.account_tokens AS A INNER JOIN block.blk_txs AS B ON A.db_key = B.db_key `
-                                + `WHERE B.blk_num > 0 AND ( A.owner_pk = ? OR A.super_pk = ? OR A.owner_pk = ? OR A.super_pk = ? ) ORDER BY A.idx DESC LIMIT 1`,
-            // selectAccountTokenAccount : `SELECT * FROM account.account_tokens WHERE account_num = ? ORDER BY idx DESC LIMIT 1`,
+                                + `WHERE B.blk_num > 0 AND ( A.owner_pk = ? OR A.super_pk = ? OR A.owner_pk = ? OR A.super_pk = ? ) ORDER BY A.create_tm DESC LIMIT 1`,
+            // selectAccountTokenAccount : `SELECT * FROM account.account_tokens WHERE account_num = ? ORDER BY create_tm DESC LIMIT 1`,
             selectAccountTokenAccount : `SELECT A.subnet_id, A.idx, A.revision, A.create_tm, B.blk_num, A.db_key, A.owner_pk, A.super_pk, `
                                 + `A.account_num, A.action, A.name, A.symbol, A.total_supply, A.market_supply, A.decimal_point, `
                                 + `A.lock_time_from, A.lock_time_to, A.lock_transfer, A.black_list, A.functions `
                                 + `FROM account.account_tokens AS A INNER JOIN block.blk_txs AS B ON A.db_key = B.db_key `
-                                + `WHERE B.blk_num > 0 AND ( A.account_num = ? ) ORDER BY A.idx DESC LIMIT 1`,
+                                + `WHERE B.blk_num > 0 AND ( A.account_num = ? ) ORDER BY A.create_tm DESC LIMIT 1`,
             //
             updateMarketSupplyByAction : "UPDATE IGNORE account.account_tokens SET market_supply = ? WHERE action = ?",
             updateBlkNumByDbKey : `UPDATE IGNORE account.account_tokens SET blk_num = ? WHERE ? <= db_key and db_key <= ?`,
@@ -380,22 +381,22 @@ module.exports.querys = {
             //
             insertAccountUsers : `INSERT IGNORE INTO account.account_users(subnet_id, revision, create_tm, blk_num, db_key, owner_pk, super_pk, account_num, account_id) VALUES `,
             //
-            // selectAccountUsersByAccountId : `SELECT * FROM account.account_users WHERE account_id = ? ORDER BY idx DESC LIMIT 1`, 
+            // selectAccountUsersByAccountId : `SELECT * FROM account.account_users WHERE account_id = ? ORDER BY create_tm DESC LIMIT 1`, 
             selectAccountUsersByAccountId : `SELECT A.subnet_id, A.idx, A.revision, A.create_tm, B.blk_num, A.db_key, A.owner_pk, A.super_pk, A.account_num, A.account_id ` 
                                         + `FROM account.account_users AS A INNER JOIN block.blk_txs AS B ON A.db_key = B.db_key ` 
-                                        + `WHERE B.blk_num > 0 AND A.account_id = ? ORDER BY A.idx DESC LIMIT 1`, 
-            // selectAccountUsersByAccountNum : `SELECT * FROM account.account_users WHERE account_num = ? ORDER BY idx DESC LIMIT 1`, 
+                                        + `WHERE B.blk_num > 0 AND A.account_id = ? ORDER BY A.create_tm DESC LIMIT 1`, 
+            // selectAccountUsersByAccountNum : `SELECT * FROM account.account_users WHERE account_num = ? ORDER BY create_tm DESC LIMIT 1`, 
             selectAccountUsersByAccountNum : `SELECT A.subnet_id, A.idx, A.revision, A.create_tm, B.blk_num, A.db_key, A.owner_pk, A.super_pk, A.account_num, A.account_id ` 
                                         + `FROM account.account_users AS A INNER JOIN block.blk_txs AS B ON A.db_key = B.db_key ` 
-                                        + `WHERE B.blk_num > 0 AND A.account_num = ? ORDER BY A.idx DESC LIMIT 1`, 
-            // selectAccountUsersByKeysAndAccountId : `SELECT * FROM account.account_users WHERE owner_pk = ? OR super_pk = ? OR owner_pk = ? OR super_pk = ? OR account_id = ? ORDER BY idx DESC LIMIT 1`,
+                                        + `WHERE B.blk_num > 0 AND A.account_num = ? ORDER BY A.create_tm DESC LIMIT 1`, 
+            // selectAccountUsersByKeysAndAccountId : `SELECT * FROM account.account_users WHERE owner_pk = ? OR super_pk = ? OR owner_pk = ? OR super_pk = ? OR account_id = ? ORDER BY create_tm DESC LIMIT 1`,
             selectAccountUsersByKeysAndAccountId : `SELECT A.subnet_id, A.idx, A.revision, A.create_tm, B.blk_num, A.db_key, A.owner_pk, A.super_pk, A.account_num, A.account_id ` 
                                                 + `FROM account.account_users AS A INNER JOIN block.blk_txs AS B ON A.db_key = B.db_key ` 
-                                                + `WHERE B.blk_num > 0 AND ( A.owner_pk = ? OR A.super_pk = ? OR A.owner_pk = ? OR A.super_pk = ? OR A.account_id = ? ) ORDER BY A.idx DESC LIMIT 1`, 
+                                                + `WHERE B.blk_num > 0 AND ( A.owner_pk = ? OR A.super_pk = ? OR A.owner_pk = ? OR A.super_pk = ? OR A.account_id = ? ) ORDER BY A.create_tm DESC LIMIT 1`, 
             // selectAccountUsersByKey : `SELECT * FROM account.account_users WHERE owner_pk = ? OR super_pk = ? OR owner_pk = ? OR super_pk = ? ORDER BY idx DESC LIMIT 1`, 
             selectAccountUsersByKey : `SELECT A.subnet_id, A.idx, A.revision, A.create_tm, B.blk_num, A.db_key, A.owner_pk, A.super_pk, A.account_num, A.account_id ` 
                                     + `FROM account.account_users AS A INNER JOIN block.blk_txs AS B ON A.db_key = B.db_key ` 
-                                    + `WHERE B.blk_num > 0 AND ( A.owner_pk = ? OR A.super_pk = ? OR A.owner_pk = ? OR A.super_pk = ? ) ORDER BY A.idx DESC LIMIT 1`,
+                                    + `WHERE B.blk_num > 0 AND ( A.owner_pk = ? OR A.super_pk = ? OR A.owner_pk = ? OR A.super_pk = ? ) ORDER BY A.create_tm DESC LIMIT 1`,
             //
             updateBlkNumByDbKey : `UPDATE IGNORE account.account_users SET blk_num = ? WHERE ? <= db_key and db_key <= ?`,
         },
@@ -405,14 +406,20 @@ module.exports.querys = {
 
             //
             // selectAccountLegers : `SELECT * FROM account.account_ledgers WHERE blk_num > 0 AND action = ? AND my_account_num = ?`,
-            selectAccountLegers : `SELECT A.subnet_id, A.idx, A.create_tm, B.blk_num, A.db_key, A.my_account_num, A.account_num, A.action, A.amount, A.balance ` 
+            selectAccountLegers : `SELECT A.subnet_id, A.idx, A.create_tm, A.db_key, A.my_account_num, A.account_num, A.action, A.amount, A.balance ` 
+                                + `FROM account.account_ledgers AS A ` 
+                                + `WHERE A.action = ? AND A.my_account_num = ? ORDER BY A.create_tm DESC LIMIT 1`, 
+            selectAccountLegersWithBN : `SELECT A.subnet_id, A.idx, A.create_tm, B.blk_num, A.db_key, A.my_account_num, A.account_num, A.action, A.amount, A.balance ` 
                                 + `FROM account.account_ledgers AS A INNER JOIN block.blk_txs AS B ON A.db_key = B.db_key ` 
-                                + `WHERE B.blk_num > 0 AND A.action = ? AND A.my_account_num = ? ORDER BY A.idx DESC LIMIT 1`, 
+                                + `WHERE A.action = ? AND A.my_account_num = ? AND B.blk_num > 0 ORDER BY A.create_tm DESC LIMIT 1`, 
+            selectAccountLegersWithDbKeyOrBN : `SELECT A.subnet_id, A.idx, A.create_tm, A.db_key, A.my_account_num, A.account_num, A.action, A.amount, A.balance ` 
+                                + `FROM account.account_ledgers AS A INNER JOIN block.blk_txs AS B ON A.db_key = B.db_key ` 
+                                + `WHERE A.action = ? AND A.my_account_num = ? AND (A.db_key = ? OR B.blk_num > 0) ORDER BY A.create_tm DESC LIMIT 1`, 
             //
-            // selectByAccountNumAndActionAndBN : `SELECT * FROM account.account_ledgers as a WHERE my_account_num = ? and action = ? and blk_num > ? and blk_num <= ? ORDER BY idx ASC, create_tm ASC`,
+            // selectByAccountNumAndActionAndBN : `SELECT * FROM account.account_ledgers as a WHERE my_account_num = ? and action = ? and blk_num > ? and blk_num <= ? ORDER BY create_tm ASC, create_tm ASC`,
             selectByAccountNumAndActionAndBN : `SELECT A.subnet_id, A.idx, A.create_tm, B.blk_num, A.db_key, A.my_account_num, A.account_num, A.action, A.amount, A.balance `
                                             + `FROM account.account_ledgers AS A INNER JOIN block.blk_txs AS B ON A.db_key = B.db_key ` 
-                                            + `WHERE A.my_account_num = ? and A.action = ? and B.blk_num > ? and B.blk_num <= ? ORDER BY A.idx ASC, A.create_tm ASC`, 
+                                            + `WHERE A.my_account_num = ? and A.action = ? and B.blk_num > ? and B.blk_num <= ? ORDER BY A.create_tm ASC, A.create_tm ASC`, 
             //
             updateBlkNumByDbKey : `UPDATE IGNORE account.account_ledgers SET blk_num = ? WHERE ? <= db_key and db_key <= ?`,
         },

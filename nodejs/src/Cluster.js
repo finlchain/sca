@@ -55,7 +55,8 @@ module.exports.clusterInit = async () => {
 
     cryptoUtil.setIsPubkey();
 
-    contractProc.setDBKeyIndex();
+    contractProc.setDbKeyIndex();
+    contractProc.setMySubNetId();
     contractProc.setClusterNum();
 
     if(cluster.isMaster) 
@@ -65,16 +66,16 @@ module.exports.clusterInit = async () => {
         //
         logger.debug("dbUtil.dbConfig" + JSON.stringify(dbUtil.dbConfig));
         await dbMain.initDatabase();
-        await dbNNHandler.setDbKey(contractProc.myDbKeyIndex, contractProc.getMySubNetId());
+        // await dbNNHandler.setDbKey(contractProc.myDbKeyIndex, contractProc.getMySubNetId());
 
         // await os.cpus().forEach( async(cpu) => {
         //     await cluster.fork();
         //});
 
-        var cpuCount = os.cpus().length;
+        let cpuCount = os.cpus().length;
         logger.debug("cpuCount " + cpuCount);
 
-        for(var i = 0; i < (define.CLUSTER_DEFINE.DEF_CLUSTER_WORKER_NUM + define.CLUSTER_DEFINE.SCA_CLUSTER_WORKER_NUM); i++)
+        for(let i = 0; i < (define.CLUSTER_DEFINE.DEF_CLUSTER_WORKER_NUM + define.CLUSTER_DEFINE.SCA_CLUSTER_WORKER_NUM); i++)
         {
             cluster.fork();
         }
@@ -224,6 +225,7 @@ module.exports.clusterInit = async () => {
                     let contractJson = JSON.parse(msg['data']);
                     logger.debug("contractJson.errCode : " + contractJson.errCode);
                     logger.debug("contractJson.jsonData : " + contractJson.jsonData);
+                    logger.debug("contractJson.dbKey : " + contractJson.dbKey);
                     contractProc.pushContractArray(contractJson);
 
                     // await TxLock.acquire();

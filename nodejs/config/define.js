@@ -57,6 +57,7 @@ module.exports.CLUSTER_DEFINE = {
         SOME_ERROR : 1
     }
 }
+
 module.exports.DB_DEFINE = {
     HEX_DB_KEY_LEN : {
         KEY_NUM_LEN : 12,
@@ -336,6 +337,12 @@ module.exports.CONTRACT_DEFINE = {
             ACTION : "action",
             DST_ACCOUNT : "dst_account", 
             AMOUNT : "amount"
+        }, 
+        TOKEN_MULTI_TX : {
+            ACTION : "action",
+            TOKEN_ACCOUNT : "token_account", 
+            TOTAL_AMOUNT : "total_amount",
+            TX_INFO : "tx_info"
         }, 
         LOCK_TOKEN_TX : {
             ACTION : "action",

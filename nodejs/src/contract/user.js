@@ -34,5 +34,6 @@ module.exports.updateChangeUserPubkeyContract = (contractJsonOrg, userAccont) =>
 
     logger.debug("updateChangeUserPubkeyContract - newContractJson : " + JSON.stringify(contractJson));
 
-    return JSON.stringify(contractJson);
+    // return JSON.stringify(contractJson);
+    return contractJson;
 }

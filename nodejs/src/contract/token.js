@@ -71,7 +71,8 @@ module.exports.updateChangeTokenPubkeyContract = (contractJsonOrg, tokenAccont) 
 
     logger.debug("updateLockTokenTxContract - newContractJson : " + JSON.stringify(contractJson));
 
-    return JSON.stringify(contractJson);
+    // return JSON.stringify(contractJson);
+    return contractJson;
 }
 
 module.exports.updateLockTokenTxContract = (contractJsonOrg, tokenAccont) => {
@@ -102,7 +103,8 @@ module.exports.updateLockTokenTxContract = (contractJsonOrg, tokenAccont) => {
 
     logger.debug("updateLockTokenTxContract - newContractJson : " + JSON.stringify(contractJson));
 
-    return JSON.stringify(contractJson);
+    // return JSON.stringify(contractJson);
+    return contractJson;
 }
 
 module.exports.updateLockTokenTimeContract = (contractJsonOrg, tokenAccont) => {
@@ -133,7 +135,8 @@ module.exports.updateLockTokenTimeContract = (contractJsonOrg, tokenAccont) => {
 
     logger.debug("updateLockTokenTimeContract - newContractJson : " + JSON.stringify(contractJson));
 
-    return JSON.stringify(contractJson);
+    // return JSON.stringify(contractJson);
+    return contractJson;
 }
 
 module.exports.updateLockTokenWalletContract = (contractJsonOrg, tokenAccont) => {
@@ -164,5 +167,53 @@ module.exports.updateLockTokenWalletContract = (contractJsonOrg, tokenAccont) =>
 
     logger.debug("updateLockTokenWalletContract - newContractJson : " + JSON.stringify(contractJson));
 
-    return JSON.stringify(contractJson);
+    // return JSON.stringify(contractJson);
+    return contractJson;
+}
+
+//
+module.exports.updateMultiTxSecTokenContract = (contractJsonOrg, txInfoOrg) => {
+    let contractJson = {
+        create_tm : contractJsonOrg.create_tm,
+        fintech : contractJsonOrg.fintech,
+        privacy : contractJsonOrg.privacy,
+        fee : contractJsonOrg.fee,
+        from_account : contractJsonOrg.from_account,
+        to_account : txInfoOrg.dst_account,
+        action : contractJsonOrg.action,
+        contents : {
+            action : contractJsonOrg.contents.action,
+            amount : txInfoOrg.amount
+        },
+        memo : txInfoOrg.memo
+    };
+
+    logger.debug("updateMultiTxSecTokenContract - newContractJson : " + JSON.stringify(contractJson));
+
+    // return JSON.stringify(contractJson);
+    return contractJson;
+}
+
+//
+module.exports.updateMultiTxUtilTokenContract = (contractJsonOrg, txInfoOrg) => {
+    let contractJson = {
+        create_tm : contractJsonOrg.create_tm,
+        fintech : contractJsonOrg.fintech,
+        privacy : contractJsonOrg.privacy,
+        fee : contractJsonOrg.fee,
+        from_account : contractJsonOrg.from_account,
+        to_account : contractJsonOrg.contents.token_account,
+        action : contractJsonOrg.action,
+        contents : {
+            action : contractJsonOrg.contents.action,
+            dst_account : txInfoOrg.dst_account,
+            amount : txInfoOrg.amount
+        },
+        memo : txInfoOrg.memo
+    };
+
+    logger.debug("updateMultiTxUtilTokenContract - newContractJson : " + JSON.stringify(contractJson));
+
+    // return JSON.stringify(contractJson);
+    return contractJson;
 }

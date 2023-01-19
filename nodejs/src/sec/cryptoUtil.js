@@ -273,26 +273,18 @@ module.exports.getNnaSubNetIds = () => {
     return subNetIdArr;
 }
 
-module.exports.genKeyIndex = () => {
+module.exports.initDbKeyIndex = () => {
     let nnaConf = config.NN_NODE_JSON;
     let p2pRoot = nnaConf.NODE.P2P.CLUSTER.ROOT;
 
-    let p2pAddr = p2pRoot.slice(
-        define.P2P_DEFINE.P2P_ROOT_SPLIT_INDEX.START, 
-        define.P2P_DEFINE.P2P_ROOT_SPLIT_INDEX.END);
+    let p2pAddr = p2pRoot.slice(define.P2P_DEFINE.P2P_ROOT_SPLIT_INDEX.START, define.P2P_DEFINE.P2P_ROOT_SPLIT_INDEX.END);
 
     const keyIndex = p2pAddr;
     let dbKeyIndex = keyIndex.toString(16);
     
-    dbKeyIndex = util.padding(
-        dbKeyIndex, 
-        define.DB_DEFINE.HEX_DB_KEY_LEN.KEY_INDEX_LEN,
-        define.COMMON_DEFINE.PADDING_DELIMITER.FRONT);
+    dbKeyIndex = util.padding(dbKeyIndex, define.DB_DEFINE.HEX_DB_KEY_LEN.KEY_INDEX_LEN, define.COMMON_DEFINE.PADDING_DELIMITER.FRONT);
 
-        dbKeyIndex = util.padding(
-            dbKeyIndex,
-        define.DB_DEFINE.HEX_DB_KEY_LEN.DB_KEY_LEN,
-        define.COMMON_DEFINE.PADDING_DELIMITER.BACK);
+    dbKeyIndex = util.padding(dbKeyIndex, define.DB_DEFINE.HEX_DB_KEY_LEN.DB_KEY_LEN, define.COMMON_DEFINE.PADDING_DELIMITER.BACK);
  
     let KeyID_big = BigInt("0x" + dbKeyIndex);
 
@@ -301,10 +293,7 @@ module.exports.genKeyIndex = () => {
 
 module.exports.getParsedSubNetId = (dbKeyIndex) => {
     let subNetId = parseInt(dbKeyIndex).toString(16);
-    subNetId = util.padding(
-        subNetId,
-        define.DB_DEFINE.HEX_DB_KEY_LEN.DB_KEY_LEN,
-        define.COMMON_DEFINE.PADDING_DELIMITER.FRONT);
+    subNetId = util.padding(subNetId, define.DB_DEFINE.HEX_DB_KEY_LEN.DB_KEY_LEN, define.COMMON_DEFINE.PADDING_DELIMITER.FRONT);
 
     subNetId = subNetId.substr(0, define.DB_DEFINE.HEX_DB_KEY_LEN.KEY_INDEX_LEN);
     subNetId = parseInt(subNetId, 16);

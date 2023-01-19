@@ -49,8 +49,9 @@ module.exports.getMySubNetId = () => {
     return mySubNetId;
 }
 
-module.exports.setMySubNetId = (subNetId) => {
-    mySubNetId = subNetId;
+module.exports.setMySubNetId = () => {
+    let keyIndex = cryptoUtil.initDbKeyIndex();
+    mySubNetId = cryptoUtil.getParsedSubNetId(keyIndex);
 
     logger.debug("mySubNetId : " + mySubNetId);
 }
@@ -137,14 +138,30 @@ module.exports.logoutProcess = async (pubkeyArr) => {
 }
 
 //
-module.exports.setDBKeyIndex = async () => {
-    this.myDbKeyIndex = cryptoUtil.genKeyIndex();
-    let subNetId = cryptoUtil.getParsedSubNetId(this.myDbKeyIndex);
-    this.setMySubNetId(subNetId);
+module.exports.setDbKeyIndex = () => {
+    this.myDbKeyIndex = cryptoUtil.initDbKeyIndex();
 
-    logger.debug("Set Contract myDbKeyIndex : " + this.myDbKeyIndex + " & subNetId : " + subNetId);
+    logger.debug("Set Contract myDbKeyIndex : " + this.myDbKeyIndex);
 }
 
+module.exports.genDbKeyIndex = () => {
+    //
+    let mySubNetIdHexStr = util.intStrToHexStr(this.getMySubNetId());
+    let genRandNumHexStr = util.getRandomNumBuf(1, 0, 15).toString('hex');
+    let curMsHexStr = util.intStrToHexStr(util.getDateMS());
+    let myMsHexStr = util.paddy(curMsHexStr, 11);
+
+    // logger.debug("mySubNetIdHexStr : " + mySubNetIdHexStr);
+    // logger.debug("genRandNumHexStr : " + genRandNumHexStr);
+    // logger.debug("curMsHexStr : " + curMsHexStr);
+    // logger.debug("myMsHexStr : " + myMsHexStr);
+    
+    let myDbKeyHexStr = mySubNetIdHexStr + genRandNumHexStr.slice(1) + myMsHexStr;
+
+    return (myDbKeyHexStr);
+}
+
+//
 module.exports.setClusterNum = () => {
      let clusterNum = cryptoUtil.getNnaNum();
 
@@ -238,7 +255,10 @@ module.exports.inspectContract = async (data) => {
         {
             if (Number(contractJson.create_tm) >= (util.getDateMS() - define.FIXED_VAL.TEN_MIN_MS)) // Valid until preivious several minutes.
             {
-                let data = {errCode : contract_error_code["ERROR_CODE"], jsonData : JSON.stringify(contractJson)};
+                let myDbKey = this.genDbKeyIndex();
+                // logger.debug('myDbKey : ' + myDbKey);
+
+                let data = {errCode : contract_error_code["ERROR_CODE"], jsonData : JSON.stringify(contractJson), dbKey : myDbKey};
 
                 // // Option 1
                 // myCluster.sendValidTxsToMaster(JSON.stringify(data));
@@ -257,7 +277,7 @@ module.exports.inspectContract = async (data) => {
         else
         {
             logger.debug("into insertScDelayedTxsV() : " + JSON.stringify(contractJson));
-            await dbNNHandler.insertScDelayedTxsV(contract_error_code["ERROR_CODE"], contractJson);
+            await dbNNHandler.insertScDelayedTxsV(contract_error_code["ERROR_CODE"], JSON.stringify(contractJson));
         }
     } while(0);
 
@@ -306,6 +326,8 @@ module.exports.sendTxArrToDB = async () => {
             await util.asyncForEach(transferArray, async (element, index) => {
                 let contractJson = JSON.parse(element['jsonData']);
                 let from_account = contractJson.from_account;
+                let myDbKey = element['dbKey'];
+                // logger.debug('myDbKey : ' + myDbKey);
 
                 //
                 // let already_exist = await this.hasContractElement(contractJson.from_account, contractJson.signed_pubkey);
@@ -319,6 +341,7 @@ module.exports.sendTxArrToDB = async () => {
                     //insertScContentsQuery += `(${mySubNetId}, '${JSON.stringify(element['jsonData'])}'),`;
                     insertScContentsQuery += `(${mySubNetId}, `; // subnet_id
                     insertScContentsQuery += `${BigInt(contractJson.create_tm)}, `; // create_tm
+                    insertScContentsQuery += `${BigInt(util.hexStrToBigInt(myDbKey))}, `; // db_key
                     insertScContentsQuery += `0, `; // confirmed
                     insertScContentsQuery += `${BigInt(util.hexStrToBigInt(from_account))}, `; // from_account
                     insertScContentsQuery += `${BigInt(util.hexStrToBigInt(contractJson.to_account))}, `; // to_account
@@ -331,7 +354,12 @@ module.exports.sendTxArrToDB = async () => {
                     {
                         insertScContentsQuery += `${contractJson.contents.action}, `; // c_action
 
-                        if (contractJson.contents.action <= define.CONTRACT_DEFINE.ACTIONS.TOKEN.SECURITY_TOKEN)
+                        if (contractJson.to_account === define.CONTRACT_DEFINE.TO_DEFAULT) // multiple transaction
+                        {
+                            insertScContentsQuery += `${BigInt(util.hexStrToBigInt(contractJson.to_account))}, `; // dst_account
+                            insertScContentsQuery += `'${contractJson.contents.total_amount}', `; // amount
+                        }
+                        else if (contractJson.contents.action <= define.CONTRACT_DEFINE.ACTIONS.TOKEN.SECURITY_TOKEN)
                         {
                             insertScContentsQuery += `${BigInt(util.hexStrToBigInt(contractJson.to_account))}, `; // dst_account
                             insertScContentsQuery += `'${contractJson.contents.amount}', `; // amount
@@ -384,7 +412,8 @@ module.exports.sendTxArrToDB = async () => {
                 {
                     await this.setContractElement(contractJson.from_account, contractJson.signed_pubkey, contractJson);
                     
-                    var db_key = (BigInt(query_result.insertId) + BigInt(i)).toString();
+                    // let db_key = (BigInt(query_result.insertId) + BigInt(i)).toString();
+                    let db_key = (BigInt(util.hexStrToBigInt(scArray[i]['dbKey']))).toString();
                     // logger.debug(db_key);
                     // block.blk_txs
                     // logger.debug(scArray[i]['jsonData']);
@@ -404,20 +433,52 @@ module.exports.sendTxArrToDB = async () => {
                     // else if (contractJson.action <= define.CONTRACT_DEFINE.ACTIONS.CONTRACT.DEFAULT.TOKEN_TX)
                     else if (contractJson.action === define.CONTRACT_DEFINE.ACTIONS.CONTRACT.DEFAULT.TOKEN_TX)
                     {
-                        if (contractJson.contents.action === define.CONTRACT_DEFINE.ACTIONS.TOKEN.SECURITY_TOKEN)
+                        if (contractJson.to_account === define.CONTRACT_DEFINE.TO_DEFAULT) // multiple transaction
                         {
-                            // secLedgerArray
-                            secLedgerArray.push({ db_key : db_key, contractJson : contractJson });
-                        }
-                        else if (contractJson.contents.action <= define.CONTRACT_DEFINE.ACTIONS.TOKEN.UTILITY_TOKEN_MAX)
-                        {
-                            //  utiLedgerArray
-                            utiLedgerArray.push({ db_key : db_key, contractJson : contractJson });
+                            //
+                            let myTxInfo = JSON.parse(contractJson.contents.tx_info);
+
+                            await util.asyncForEach(myTxInfo, async(element, index) => {
+                                //
+                                if (contractJson.contents.action === define.CONTRACT_DEFINE.ACTIONS.TOKEN.SECURITY_TOKEN)
+                                {
+                                    // secLedgerArray
+                                    let newContractJson = token.updateMultiTxSecTokenContract(contractJson, element);
+
+                                    secLedgerArray.push({ db_key : db_key, contractJson : newContractJson });
+                                }
+                                else if (contractJson.contents.action <= define.CONTRACT_DEFINE.ACTIONS.TOKEN.UTILITY_TOKEN_MAX)
+                                {
+                                    //  utiLedgerArray
+                                    let newContractJson = token.updateMultiTxUtilTokenContract(contractJson, element);
+
+                                    utiLedgerArray.push({ db_key : db_key, contractJson : newContractJson });
+                                }
+                                else
+                                {
+                                    // Error
+                                    logger.error("Error - contractJson.contents.action 1");
+                                }
+                            });
                         }
                         else
                         {
-                            // Error
-                            logger.error("Error - contractJson.contents.action");
+                            //
+                            if (contractJson.contents.action === define.CONTRACT_DEFINE.ACTIONS.TOKEN.SECURITY_TOKEN)
+                            {
+                                // secLedgerArray
+                                secLedgerArray.push({ db_key : db_key, contractJson : contractJson });
+                            }
+                            else if (contractJson.contents.action <= define.CONTRACT_DEFINE.ACTIONS.TOKEN.UTILITY_TOKEN_MAX)
+                            {
+                                //  utiLedgerArray
+                                utiLedgerArray.push({ db_key : db_key, contractJson : contractJson });
+                            }
+                            else
+                            {
+                                // Error
+                                logger.error("Error - contractJson.contents.action 2");
+                            }
                         }
                     }
 
@@ -436,7 +497,7 @@ module.exports.sendTxArrToDB = async () => {
                         // 
                         let tokenAccont = await dbNNHandler.accountTokenCheck(contractJson.contents.action);
 
-                        let newContractJson = JSON.parse(token.updateChangeTokenPubkeyContract(contractJson, tokenAccont[0]));
+                        let newContractJson = token.updateChangeTokenPubkeyContract(contractJson, tokenAccont[0]);
 
                         // tokenArray
                         tokenArray.push({ db_key : db_key, revision : Number(tokenAccont[0].revision) + 1, market_supply : tokenAccont[0].market_supply, contractJson : newContractJson });
@@ -446,7 +507,7 @@ module.exports.sendTxArrToDB = async () => {
                         // 
                         let tokenAccont = await dbNNHandler.accountTokenCheck(contractJson.contents.action);
 
-                        let newContractJson = JSON.parse(token.updateLockTokenTxContract(contractJson, tokenAccont[0]));
+                        let newContractJson = token.updateLockTokenTxContract(contractJson, tokenAccont[0]);
 
                         // tokenArray
                         tokenArray.push({ db_key : db_key, revision : Number(tokenAccont[0].revision) + 1, market_supply : tokenAccont[0].market_supply, contractJson : newContractJson });
@@ -456,7 +517,7 @@ module.exports.sendTxArrToDB = async () => {
                         // 
                         let tokenAccont = await dbNNHandler.accountTokenCheck(contractJson.contents.action);
 
-                        let newContractJson = JSON.parse(token.updateLockTokenTimeContract(contractJson, tokenAccont[0]));
+                        let newContractJson = token.updateLockTokenTimeContract(contractJson, tokenAccont[0]);
 
                         // tokenArray
                         tokenArray.push({ db_key : db_key, revision : Number(tokenAccont[0].revision) + 1, market_supply : tokenAccont[0].market_supply, contractJson : newContractJson });
@@ -466,7 +527,7 @@ module.exports.sendTxArrToDB = async () => {
                         // 
                         let tokenAccont = await dbNNHandler.accountTokenCheck(contractJson.contents.action);
 
-                        let newContractJson = JSON.parse(token.updateLockTokenWalletContract(contractJson, tokenAccont[0]));
+                        let newContractJson = token.updateLockTokenWalletContract(contractJson, tokenAccont[0]);
 
                         // tokenArray
                         tokenArray.push({ db_key : db_key, revision : Number(tokenAccont[0].revision) + 1, market_supply : tokenAccont[0].market_supply, contractJson : newContractJson });
@@ -483,7 +544,7 @@ module.exports.sendTxArrToDB = async () => {
                         // 
                         let userAccont = await dbNNHandler.accountUserAccountIdCheck(contractJson.contents.account_id);
 
-                        let newContractJson = JSON.parse(user.updateChangeUserPubkeyContract(contractJson, userAccont[0]));
+                        let newContractJson = user.updateChangeUserPubkeyContract(contractJson, userAccont[0]);
 
                         // userArray
                         userArray.push({ db_key : db_key, revision : Number(userAccont[0].revision) + 1, contractJson : newContractJson });
@@ -498,7 +559,7 @@ module.exports.sendTxArrToDB = async () => {
                     else if ((contractJson.action >= define.CONTRACT_DEFINE.ACTIONS.CONTRACT.SC.STT) &&
                         (contractJson.action <= define.CONTRACT_DEFINE.ACTIONS.CONTRACT.NFT.END))
                     {
-                        let newContractJson = JSON.parse(sc.updateTransferScContract(contractJson));
+                        let newContractJson = sc.updateTransferScContract(contractJson);
                         
                         // scActionArray
                         scActionArray.push({ db_key : db_key, contractJson : newContractJson });

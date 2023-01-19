@@ -262,6 +262,30 @@ module.exports.accountLegerCheck = async (account_num, action) => {
 }
 
 //
+module.exports.accountLegerCheckWithBN = async (account_num, action) => {
+    const conn = await dbUtil.getConn();
+
+    // logger.debug("accountLegerCheckWithBN - account_num : " + account_num + ", action : " + action);
+    [query_result] = await dbUtil.exeQueryParam(conn, dbNN.querys.account.account_ledgers.selectAccountLegersWithBN, [action, account_num]);
+
+    await dbUtil.releaseConn(conn);
+
+    return query_result;
+}
+
+//
+module.exports.accountLegerCheckWithDbKeyOrBN = async (account_num, action, db_key) => {
+    const conn = await dbUtil.getConn();
+
+    // logger.debug("accountLegerCheckWithDbKeyOrBN - account_num : " + account_num + ", action : " + action);
+    [query_result] = await dbUtil.exeQueryParam(conn, dbNN.querys.account.account_ledgers.selectAccountLegersWithDbKeyOrBN, [action, account_num, db_key]);
+
+    await dbUtil.releaseConn(conn);
+
+    return query_result;
+}
+
+//
 module.exports.setAccountLedgers = async (create_tm, db_key, my_account_num, action, amount, balance) => {
     //
     const conn = await dbUtil.getConn();
@@ -332,6 +356,9 @@ module.exports.insertAccountSecLedger = async (secLedgerArray) => {
     //
     let insertAccountLedgerQuery = dbNN.querys.account.account_ledgers.insertAccountLedgers;
     //
+    let contract_map = new Map();
+
+    //
     await util.asyncForEach(secLedgerArray, async(element, index) => {
         contractJson = element['contractJson'];
 
@@ -339,6 +366,7 @@ module.exports.insertAccountSecLedger = async (secLedgerArray) => {
         fromAccountInt = util.hexStrToBigInt(contractJson.from_account);
         toAccountInt = util.hexStrToBigInt(contractJson.to_account);
 
+        // logger.debug("contract_map: " + JSON.stringify(contract_map));
         //
         if (contractJson.action === define.CONTRACT_DEFINE.ACTIONS.CONTRACT.DEFAULT.TOKEN_TX)
         {
@@ -374,7 +402,7 @@ module.exports.insertAccountSecLedger = async (secLedgerArray) => {
 
             //
             insertAccountLedgerQuery += `(${contractProc.getMySubNetId()}, `;
-            insertAccountLedgerQuery += `${BigInt(contractJson.create_tm)}, `; // create_tm
+            insertAccountLedgerQuery += `${BigInt(util.getDateMS().toString())}, `; // create_tm
             insertAccountLedgerQuery += `${BigInt(blk_num)}, `; // blk_num
             insertAccountLedgerQuery += `${BigInt(element.db_key)}, `;
             insertAccountLedgerQuery += `${BigInt(toAccountInt)}, `;
@@ -386,27 +414,56 @@ module.exports.insertAccountSecLedger = async (secLedgerArray) => {
         else
         {
             // From Account Ledger Balance
-            let fBalVal = contractJson.contents.amount;
-            let fAccountLeger = await this.accountLegerCheck(fromAccountInt, action);
-            if (fAccountLeger.length)
+            let fBalVal;
+            if (contract_map.get(fromAccountInt))
             {
+                logger.debug("contract_map: " + JSON.stringify(contract_map));
                 //
-                logger.debug("fAccountLeger : " + JSON.stringify(fAccountLeger));
-                logger.debug("fAccountLeger.balance : " + fAccountLeger[0].balance);
-                let splitNum = util.chkDecimalPoint(fAccountLeger[0].balance);
+                fBalVal = contract_map.get(fromAccountInt);
+                // logger.debug("fBalVal 1:" + fBalVal);
+
+                let splitNum = util.chkDecimalPoint(fBalVal);
                 let decimal_point = splitNum[1].length;
                 // logger.debug("decimal_point : " + decimal_point);
-    
-                fBalVal = util.calNum(fAccountLeger[0].balance, '-', contractJson.contents.amount, decimal_point);
-                if (fBalVal === define.ERR_CODE.ERROR)
+                fBalVal = util.calNum(fBalVal, '-', contractJson.contents.amount, decimal_point);
+                // logger.debug("fBalVal 2: " + fBalVal);
+                //
+                contract_map.set(fromAccountInt, fBalVal);
+                // logger.debug("reset contract_map value: " + JSON.stringify(contract_map));
+            }
+            else
+            {
+                // get balance by blocknum
+                logger.debug("contract_map x");
+                // From Account Ledger Balance
+                fBalVal = contractJson.contents.amount;
+                let fAccountLeger = await this.accountLegerCheckWithDbKeyOrBN(fromAccountInt, action, element.db_key);
+                logger.debug("fAccountLedger: " + JSON.stringify(fAccountLeger));
+                // logger.debug("element.db_key: " + element.db_key);
+                if (fAccountLeger.length)
                 {
-                    fBalVal = fAccountLeger[0].balance; // ?????????????
+                    //
+                    // logger.debug("fAccountLeger : " + JSON.stringify(fAccountLeger));
+                    // logger.debug("fAccountLeger.balance : " + fAccountLeger[0].balance);
+                    let splitNum = util.chkDecimalPoint(fAccountLeger[0].balance);
+                    let decimal_point = splitNum[1].length;
+                    // logger.debug("decimal_point : " + decimal_point);
+                    fBalVal = util.calNum(fAccountLeger[0].balance, '-', contractJson.contents.amount, decimal_point);
+                    if (fBalVal === define.ERR_CODE.ERROR)
+                    {
+                        fBalVal = fAccountLeger[0].balance; // ?????????????
+                    }
+                    //
+                    contract_map.set(fromAccountInt, fBalVal);
                 }
             }
 
+            //
+            let curCreateTm = util.getDateMS().toString();
+
             // From Account
             insertAccountLedgerQuery += `(${contractProc.getMySubNetId()}, `;
-            insertAccountLedgerQuery += `${BigInt(contractJson.create_tm)}, `; // create_tm
+            insertAccountLedgerQuery += `${BigInt(curCreateTm)}, `; // create_tm
             insertAccountLedgerQuery += `${BigInt(blk_num)}, `; // blk_num
             insertAccountLedgerQuery += `${BigInt(element.db_key)}, `;
             insertAccountLedgerQuery += `${BigInt(fromAccountInt)}, `;
@@ -417,7 +474,7 @@ module.exports.insertAccountSecLedger = async (secLedgerArray) => {
 
             // To Account
             insertAccountLedgerQuery += `(${contractProc.getMySubNetId()}, `;
-            insertAccountLedgerQuery += `${BigInt(contractJson.create_tm)}, `; // create_tm
+            insertAccountLedgerQuery += `${BigInt(curCreateTm)}, `; // create_tm
             insertAccountLedgerQuery += `${BigInt(blk_num)}, `; // blk_num
             insertAccountLedgerQuery += `${BigInt(element.db_key)}, `;
             insertAccountLedgerQuery += `${BigInt(toAccountInt)}, `;
@@ -466,12 +523,16 @@ module.exports.insertAccountUtilLedger = async (utiLedgerArray) => {
     //
     let insertAccountLedgerQuery = dbNN.querys.account.account_ledgers.insertAccountLedgers;
     //
+    let contract_map = new Map();
+    //
     await util.asyncForEach(utiLedgerArray, async(element, index) => {
         contractJson = element['contractJson'];
 
         fromAccountInt = util.hexStrToBigInt(contractJson.from_account);
         toAccountInt = util.hexStrToBigInt(contractJson.contents.dst_account);
 
+        // logger.debug("contract_map: " + JSON.stringify(contract_map));
+        //
         if (contractJson.action === define.CONTRACT_DEFINE.ACTIONS.CONTRACT.DEFAULT.TOKEN_TX)
         {
             action = contractJson.contents.action;
@@ -487,20 +548,45 @@ module.exports.insertAccountUtilLedger = async (utiLedgerArray) => {
             await token.updateAccountTokenMS('+', contractJson.contents.amount, action);
         }
 
-        // From Account Ledger Balance
-        let fBalVal = contractJson.contents.amount;
-        let fAccountLeger = await this.accountLegerCheck(fromAccountInt, action);
-        if (fAccountLeger.length)
+        let fBalVal;
+        if (contract_map.get(fromAccountInt))
         {
+            // logger.debug("contract_map: " + JSON.stringify(contract_map));
             //
-            let splitNum = util.chkDecimalPoint(fAccountLeger[0].balance);
+            fBalVal = contract_map.get(fromAccountInt);
+            // logger.debug("fBalVal 1:" + fBalVal);
+
+            let splitNum = util.chkDecimalPoint(fBalVal);
             let decimal_point = splitNum[1].length;
             // logger.debug("decimal_point : " + decimal_point);
-
-            fBalVal = util.calNum(fAccountLeger[0].balance, '-', contractJson.contents.amount, decimal_point);
-            if (fBalVal === define.ERR_CODE.ERROR)
+            fBalVal = util.calNum(fBalVal, '-', contractJson.contents.amount, decimal_point);
+            // logger.debug("fBalVal 2: " + fBalVal);
+            //
+            contract_map.set(fromAccountInt, fBalVal);
+            // logger.debug("reset contract_map value: " + JSON.stringify(contract_map));
+        }
+        else
+        {
+            // get balance by blocknum
+            logger.debug("contract_map x");
+            // From Account Ledger Balance
+            fBalVal = contractJson.contents.amount;
+            let fAccountLeger = await this.accountLegerCheckWithDbKeyOrBN(fromAccountInt, action, element.db_key);
+            logger.debug("fAccountLedger: " + JSON.stringify(fAccountLeger));
+            // logger.debug("element.db_key: " + element.db_key);
+            if (fAccountLeger.length)
             {
-                fBalVal = fAccountLeger[0].balance; // ?????????????
+                //
+                let splitNum = util.chkDecimalPoint(fAccountLeger[0].balance);
+                let decimal_point = splitNum[1].length;
+                // logger.debug("decimal_point : " + decimal_point);
+                fBalVal = util.calNum(fAccountLeger[0].balance, '-', contractJson.contents.amount, decimal_point);
+                if (fBalVal === define.ERR_CODE.ERROR)
+                {
+                    fBalVal = fAccountLeger[0].balance; // ?????????????
+                }
+                //
+                contract_map.set(fromAccountInt, fBalVal);
             }
         }
 
@@ -522,9 +608,13 @@ module.exports.insertAccountUtilLedger = async (utiLedgerArray) => {
         }
 
         // Account Ledger
+
+        //
+        let curCreateTm = util.getDateMS().toString();
+
         // From Account
         insertAccountLedgerQuery += `(${contractProc.getMySubNetId()}, `;
-        insertAccountLedgerQuery += `${BigInt(contractJson.create_tm)}, `; // create_tm
+        insertAccountLedgerQuery += `${BigInt(curCreateTm)}, `; // create_tm
         insertAccountLedgerQuery += `${BigInt(blk_num)}, `; // blk_num
         insertAccountLedgerQuery += `${BigInt(element.db_key)}, `;
         insertAccountLedgerQuery += `${BigInt(fromAccountInt)}, `;
@@ -535,7 +625,7 @@ module.exports.insertAccountUtilLedger = async (utiLedgerArray) => {
 
         // To Account
         insertAccountLedgerQuery += `(${contractProc.getMySubNetId()}, `;
-        insertAccountLedgerQuery += `${BigInt(contractJson.create_tm)}, `; // create_tm
+        insertAccountLedgerQuery += `${BigInt(curCreateTm)}, `; // create_tm
         insertAccountLedgerQuery += `${BigInt(blk_num)}, `; // blk_num
         insertAccountLedgerQuery += `${BigInt(element.db_key)}, `;
         insertAccountLedgerQuery += `${BigInt(toAccountInt)}, `;
@@ -617,8 +707,8 @@ module.exports.insertAccountTokensV = async (tokenArray) => {
     let insertAccountTokenQuery = dbNN.querys.account.account_tokens.insertAccountTokens;
 
     //
-    let accountBalanceArr = new Array();
-    let accountLedgerArr = new Array();
+    // let accountBalanceArr = new Array();
+    // let accountLedgerArr = new Array();
 
     //
     await util.asyncForEach(tokenArray, async(element, index) => {
@@ -638,9 +728,13 @@ module.exports.insertAccountTokensV = async (tokenArray) => {
             
             // logger.debug("my_account_num : " + my_account_num + ", Bigint1 : " + BigInt(util.hexStrToBigInt(my_account_num)) + ", Bigint2 : " + BigInt(util.hexStrToBigInt(my_account_num)));
             
+            //
+            let curCreateTm = util.getDateMS().toString();
+
+            //
             insertAccountTokenQuery += `(${contractProc.getMySubNetId()}, `;
             insertAccountTokenQuery += `${BigInt(element.revision)}, `;
-            insertAccountTokenQuery += `${BigInt(contractJson.create_tm)}, `; // create_tm
+            insertAccountTokenQuery += `${BigInt(curCreateTm)}, `; // create_tm
             insertAccountTokenQuery += `${BigInt(blk_num)}, `; // blk_num
             insertAccountTokenQuery += `${BigInt(element.db_key)}, `;
             insertAccountTokenQuery += `'${contractJson.contents.owner_pk}', `;
@@ -661,7 +755,7 @@ module.exports.insertAccountTokensV = async (tokenArray) => {
             if (contractJson.contents.action !== define.CONTRACT_DEFINE.ACTIONS.TOKEN.SECURITY_TOKEN)
             {
                 // 
-                let query_result = await this.accountLegerCheck(my_account_num, contractJson.contents.action);
+                let query_result = await this.accountLegerCheckWithBN(my_account_num, contractJson.contents.action);
                 if (!query_result.length)
                 {
                     await this.setAccountLedgers(contractJson.create_tm, element.db_key, my_account_num, contractJson.contents.action, contractJson.contents.total_supply, contractJson.contents.total_supply);
@@ -693,7 +787,7 @@ module.exports.insertAccountTokensV = async (tokenArray) => {
     // await ledger.setAccountBalanceArr(accountBalanceArr);
 
     //
-    await this.setAccountLedgersArr(accountLedgerArr);
+    // await this.setAccountLedgersArr(accountLedgerArr);
 
     if (cnt)
     {
@@ -709,7 +803,7 @@ module.exports.insertAccountTokensV = async (tokenArray) => {
 
     //
     // accountBalanceArr = new Array();
-    accountLedgerArr = new Array();
+    // accountLedgerArr = new Array();
 }
 
 //
@@ -780,9 +874,13 @@ module.exports.insertAccountUsersV = async (userArray) => {
 
             // logger.debug("my_account_num : " + my_account_num+ ", Bigint1 : " + BigInt(util.hexStrToBigInt(my_account_num)) + ", Bigint2 : " + BigInt(util.hexStrToBigInt(my_account_num)));
 
+            //
+            let curCreateTm = util.getDateMS().toString();
+
+            //
             insertAccountUserQuery += `(${contractProc.getMySubNetId()}, `;
             insertAccountUserQuery += `${BigInt(element.revision)}, `;
-            insertAccountUserQuery += `${BigInt(contractJson.create_tm)}, `; // create_tm
+            insertAccountUserQuery += `${BigInt(curCreateTm)}, `; // create_tm
             insertAccountUserQuery += `${BigInt(0)}, `; // blk_num
             insertAccountUserQuery += `${BigInt(element.db_key)}, `;
             insertAccountUserQuery += `'${contractJson.contents.owner_pk}', `;
@@ -868,8 +966,11 @@ module.exports.insertAccountScActionV = async (scActionArray) => {
             let scJson = JSON.parse(contractJson.contents.sc);
 
             //
+            let curCreateTm = util.getDateMS().toString();
+
+            //
             insertAccountScQuery += `(${contractProc.getMySubNetId()}, `;
-            insertAccountScQuery += `${BigInt(contractJson.create_tm)}, `; // create_tm
+            insertAccountScQuery += `${BigInt(curCreateTm)}, `; // create_tm
             insertAccountScQuery += `${BigInt(0)}, `; // blk_num
             insertAccountScQuery += `${BigInt(element.db_key)}, `;
             insertAccountScQuery += `${contractJson.contents.sc_action}, `;
@@ -903,28 +1004,35 @@ module.exports.insertScDelayedTxsV = async (errCode, contractJson) => {
     // logger.debug("func - insertScDelayedTxsV");
 
     let insertScDelayedTxsQuery = dbNN.querys.sc.sc_delayed_txs.insertScDelayedTxs;
-
+    
+    let contractJsonParse = JSON.parse(contractJson);
+    //
     insertScDelayedTxsQuery += `(${contractProc.getMySubNetId()}, `; // subnet_id
-    insertScDelayedTxsQuery += `${BigInt(contractJson.create_tm)}, `; // create_tm
+    insertScDelayedTxsQuery += `${BigInt(contractJsonParse.create_tm)}, `; // create_tm
     insertScDelayedTxsQuery += `0, `; // excuted
-    insertScDelayedTxsQuery += `${BigInt(util.hexStrToBigInt(contractJson.from_account))}, `; // from_account
-    insertScDelayedTxsQuery += `${BigInt(util.hexStrToBigInt(contractJson.to_account))}, `; // to_account
-    insertScDelayedTxsQuery += `${contractJson.action}, `; // action
+    insertScDelayedTxsQuery += `${BigInt(util.hexStrToBigInt(contractJsonParse.from_account))}, `; // from_account
+    insertScDelayedTxsQuery += `${BigInt(util.hexStrToBigInt(contractJsonParse.to_account))}, `; // to_account
+    insertScDelayedTxsQuery += `${contractJsonParse.action}, `; // action
 
     //
-    if (contractJson.action === define.CONTRACT_DEFINE.ACTIONS.CONTRACT.DEFAULT.TOKEN_TX)
+    if (contractJsonParse.action === define.CONTRACT_DEFINE.ACTIONS.CONTRACT.DEFAULT.TOKEN_TX)
     {
-        insertScDelayedTxsQuery += `${contractJson.contents.action}, `; // c_action
+        insertScDelayedTxsQuery += `${contractJsonParse.contents.action}, `; // c_action
 
-        if (contractJson.contents.action <= define.CONTRACT_DEFINE.ACTIONS.TOKEN.SECURITY_TOKEN)
+        if (contractJsonParse.to_account === define.CONTRACT_DEFINE.TO_DEFAULT) // multiple transaction
         {
-            insertScDelayedTxsQuery += `${BigInt(util.hexStrToBigInt(contractJson.to_account))}, `; // dst_account
-            insertScDelayedTxsQuery += `'${contractJson.contents.amount}', `; // amount
+            insertScDelayedTxsQuery += `${BigInt(util.hexStrToBigInt(contractJsonParse.to_account))}, `; // dst_account
+            insertScDelayedTxsQuery += `'${contractJsonParse.contents.total_amount}', `; // amount
         }
-        else if (contractJson.contents.action <= define.CONTRACT_DEFINE.ACTIONS.TOKEN.UTILITY_TOKEN_MAX)
+        else if (contractJsonParse.contents.action <= define.CONTRACT_DEFINE.ACTIONS.TOKEN.SECURITY_TOKEN)
         {
-            insertScDelayedTxsQuery += `${BigInt(util.hexStrToBigInt(contractJson.contents.dst_account))}, `; // dst_account
-            insertScDelayedTxsQuery += `'${contractJson.contents.amount}', `; // amount
+            insertScDelayedTxsQuery += `${BigInt(util.hexStrToBigInt(contractJsonParse.to_account))}, `; // dst_account
+            insertScDelayedTxsQuery += `'${contractJsonParse.contents.amount}', `; // amount
+        }
+        else if (contractJsonParse.contents.action <= define.CONTRACT_DEFINE.ACTIONS.TOKEN.UTILITY_TOKEN_MAX)
+        {
+            insertScDelayedTxsQuery += `${BigInt(util.hexStrToBigInt(contractJsonParse.contents.dst_account))}, `; // dst_account
+            insertScDelayedTxsQuery += `'${contractJsonParse.contents.amount}', `; // amount
         }
     }
     else
@@ -935,7 +1043,7 @@ module.exports.insertScDelayedTxsV = async (errCode, contractJson) => {
         insertScDelayedTxsQuery += `'0', `; // amount
     }
 
-    insertScDelayedTxsQuery += `'${contractJson.signed_pubkey}', `; // signed_pubkey
+    insertScDelayedTxsQuery += `'${contractJsonParse.signed_pubkey}', `; // signed_pubkey
     insertScDelayedTxsQuery += ` ${errCode}, `; // err_code
     insertScDelayedTxsQuery += `${JSON.stringify(contractJson)})`;
     // insertScDelayedTxsQuery += `'${JSON.stringify(contractJson)}')`;
@@ -956,7 +1064,7 @@ module.exports.procScDelayedTxs = async (createTm) => {
         await util.asyncForEach(query_result, async (element, index) => {
             // logger.debug("create_tm : " + element.create_tm + ", action : " + element.action);
             // logger.debug("element.contract : " + element.contract);
-            let data = {errCode : element.err_code, jsonData : element.contract};
+            let data = {errCode : element.err_code, jsonData : element.contract, dbKey : contractProc.genDbKeyIndex()};
             contractProc.pushContractArray(data);
         });
 
